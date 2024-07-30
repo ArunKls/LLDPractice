@@ -4,6 +4,7 @@ import java.util.concurrent.*;
 import java.util.Queue;
 import java.util.LinkedList;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.Condition;
 
 class WriterObj implements Runnable {
 
@@ -57,36 +58,66 @@ public class ReaderWriter {
     public static int count = 100;
     public static ReentrantLock lock = new ReentrantLock();
     public static final Semaphore writeLock = new Semaphore(1);
+    public static final Condition condition = lock.newCondition();
+    public static boolean writing = false;
     private static int readers = 0;
 
     public static void acquireReadLock() {
         lock.lock();
-        readers++;
-        if (readers == 1) {
-            acquireWriteLock();
+        // if (readers == 0) {
+        //     acquireWriteLock();
+        // }
+        while (writing){
+            try {
+                condition.await();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
+        readers++;
         lock.unlock();
     }
 
     public static void releaseReadLock() {
         lock.lock();
+        // if (readers == 1) {
+        //     releaseWriteLock();
+        // }
         readers--;
-        if (readers == 0) {
-            releaseWriteLock();
+        if (readers == 0){
+            condition.signalAll();
         }
         lock.unlock();
     }
 
     public static void acquireWriteLock() {
-        try {
-            writeLock.acquire();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        // try {
+        //     writeLock.acquire();
+        // } catch (InterruptedException e) {
+        //     e.printStackTrace();
+        // }
+        lock.lock();
+        while(readers > 0 || writing){
+            try {
+                condition.await();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
+        writing = true;
+        lock.unlock();
     }
 
     public static void releaseWriteLock() {
-        writeLock.release();
+        // writeLock.release();
+        lock.lock();
+        try {
+            writing = false;
+            condition.signalAll();
+        } finally {
+            lock.unlock();
+        }
+        lock.unlock();
     }
 
     public static void main(String[] args) throws Exception {
