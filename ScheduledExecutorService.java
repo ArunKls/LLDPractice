@@ -53,7 +53,7 @@ class ScheduleThreads{
 	public void schedule(Runnable command, long delay, TimeUnit unit, int type){
 		lock.lock();
 		delay = unit.toMillis(delay);
-		pq.add(new QObject(command, System.currentTimeMillis(), delay, type));
+		pq.add(new QObject(command, System.currentTimeMillis() + unit.toMillis(delay), unit.toMillis(delay), type));
 		taskAdded.signalAll();
 		lock.unlock();
 	}
@@ -61,6 +61,12 @@ class ScheduleThreads{
 	public void schedule(Runnable command, long initialDelay, long delay, TimeUnit unit, int type){
 		lock.lock();
 		pq.add(new QObject(command, System.currentTimeMillis() + unit.toMillis(initialDelay), unit.toMillis(delay), type));
+		taskAdded.signalAll();
+		lock.unlock();
+	}
+	public void schedule(QObject qObject){
+		lock.lock();
+		pq.add(qObject);
 		taskAdded.signalAll();
 		lock.unlock();
 	}
@@ -77,16 +83,32 @@ class ScheduleThreads{
 				}
 				else {
 					QObject obj = pq.poll();
-					CompletableFuture<?> future = CompletableFuture.runAsync(obj.getRunnable(), exec);
-					if (obj.type == 1){
+					// // Spawn a new thread that waits on condition for this job to complete and then runs code to schedule next job
+					// CompletableFuture<?> future = CompletableFuture.runAsync(obj.getRunnable(), exec);
+					// if (obj.type == 1){
+					// 	obj.setScheduleTime(System.currentTimeMillis() + obj.delay);
+					// 	schedule(obj);
+					// }
+					// else if (obj.type == 2){
+					// 	future.thenRunAsync(()->{
+					// 		obj.setScheduleTime(System.currentTimeMillis() + obj.delay);
+					// 		schedule(obj);
+					// 	});
+					// }
+					Runnable task = obj.getRunnable();
+					new Thread(() -> {
+                        try {
+                            task.run();
+                        } finally {
+							if (obj.type == 2) { // Fixed delay scheduling
+								obj.setScheduleTime(System.currentTimeMillis() + obj.delay);
+								schedule(obj);
+							}
+                        }
+                    }).start();
+					if (obj.type == 1) { // Fixed rate scheduling
 						obj.setScheduleTime(System.currentTimeMillis() + obj.delay);
-						pq.add(obj);
-					}
-					else if (obj.type == 2){
-						future.thenRunAsync(()->{
-							obj.setScheduleTime(System.currentTimeMillis() + obj.delay);
-							pq.add(obj);
-						});
+						schedule(obj);
 					}
 				}
 			} catch (InterruptedException e){
