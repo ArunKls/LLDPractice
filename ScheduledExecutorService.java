@@ -43,17 +43,17 @@ class ScheduleThreads{
 	private PriorityQueue<QObject> pq;
 	private Lock lock = new ReentrantLock();
 	private Condition taskAdded = lock.newCondition();
-	private ThreadPoolExecutor exec;
+	// private ThreadPoolExecutor exec;
 
 	public ScheduleThreads(int numThreads){
 		pq = new PriorityQueue<>(Comparator.comparingLong(QObject::getScheduleTime));
-		exec = (ThreadPoolExecutor)Executors.newFixedThreadPool(10);
+		// exec = (ThreadPoolExecutor)Executors.newFixedThreadPool(10);
 	}
 	
 	public void schedule(Runnable command, long delay, TimeUnit unit, int type){
 		lock.lock();
 		delay = unit.toMillis(delay);
-		pq.add(new QObject(command, System.currentTimeMillis() + unit.toMillis(delay), unit.toMillis(delay), type));
+		pq.add(new QObject(command, System.currentTimeMillis() + delay, delay, type));
 		taskAdded.signalAll();
 		lock.unlock();
 	}
@@ -154,10 +154,10 @@ class ScheduledExecutorService {
 		schedule(task1, 1, TimeUnit.SECONDS);
 		Runnable task2 = getRunnableTask("Task2");
 		scheduleAtFixedRate(task2,1, 5, TimeUnit.SECONDS);
-		Runnable task3 = getRunnableTask("Task3", 15, TimeUnit.SECONDS);
+		Runnable task3 = getRunnableTask("Task3", 4, TimeUnit.SECONDS);
 		scheduleWithFixedDelay(task3,1,2,TimeUnit.SECONDS);
 		Runnable task4 = getRunnableTask("Task4");
-		scheduleAtFixedRate(task4,1, 10, TimeUnit.SECONDS);
+		scheduleAtFixedRate(task4,1, 3, TimeUnit.SECONDS);
 		scheduler.run();
     }
 
