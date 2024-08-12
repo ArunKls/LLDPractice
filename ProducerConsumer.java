@@ -5,6 +5,10 @@ import java.util.concurrent.*;
 import java.util.Queue;
 import java.util.LinkedList;
 
+// ************************* Simplified and implemented with locks *************************
+// ********************* (in case of multiple producers and consumers *********************
+// **************************** in ProducerConsumerSimple.java) ****************************
+
 class ProducerObj implements Runnable {
     // public int count;
     public Helper helper;
